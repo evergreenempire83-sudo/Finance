@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Dashboard - EverNet</title>
+  
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#001f3f">
+  
+  <!-- Fonts & Icons -->
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Montserrat:wght@700;800;900&display=swap" rel="stylesheet">
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <link rel="stylesheet" href="styles/financial-styles.css">
+</head>
+<body>
+  <!-- Navigation -->
+  <nav class="financial-nav">
+    <div class="nav-brand">
+      <span class="brand-text">EVERNET ADMIN</span>
+    </div>
+    <div class="nav-links">
+      <a href="admin-portal.html" class="nav-link active">
+        <i class="fas fa-tachometer-alt"></i> Dashboard
+      </a>
+      <a href="financial-portal.html" class="nav-link">
+        <i class="fas fa-chart-line"></i> Financial Portal
+      </a>
+      <a href="withdrawal-management.html" class="nav-link">
+        <i class="fas fa-money-bill-wave"></i> Withdrawals
+      </a>
+      <a href="withdrawal-requests.html" class="nav-link">
+        <i class="fas fa-list-check"></i> Requests
+      </a>
+      <a href="#" class="nav-link" onclick="logout()">
+        <i class="fas fa-sign-out-alt"></i> Logout
+      </a>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <div class="financial-container">
+    <!-- Welcome Section -->
+    <div class="dashboard-header">
+      <h1>Admin Dashboard</h1>
+      <p>Welcome back, <span id="adminName">Admin</span>! 👋</p>
+    </div>
+
+    <!-- Stats Overview -->
+    <div class="header-stats">
+      <div class="stat-card">
+        <div class="stat-icon">
+          <i class="fas fa-users"></i>
+        </div>
+        <div class="stat-info">
+          <span class="stat-value" id="totalCreators">0</span>
+          <span class="stat-label">Total Creators</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">
+          <i class="fas fa-wallet"></i>
+        </div>
+        <div class="stat-info">
+          <span class="stat-value" id="totalEarnings">$0</span>
+          <span class="stat-label">Total Earnings</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">
+          <i class="fas fa-clock"></i>
+        </div>
+        <div class="stat-info">
+          <span class="stat-value" id="pendingRequests">0</span>
+          <span class="stat-label">Pending Requests</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">
+          <i class="fas fa-check-circle"></i>
+        </div>
+        <div class="stat-info">
+          <span class="stat-value" id="activeWithdrawals">0</span>
+          <span class="stat-label">Active Withdrawals</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="quick-actions">
+      <h2>Quick Actions</h2>
+      <div class="action-grid">
+        <a href="financial-portal.html" class="action-card">
+          <div class="action-icon">
+            <i class="fas fa-chart-line"></i>
+          </div>
+          <h3>Financial Portal</h3>
+          <p>Manage earnings and financial reports</p>
+        </a>
+        
+        <a href="withdrawal-management.html" class="action-card">
+          <div class="action-icon">
+            <i class="fas fa-toggle-on"></i>
+          </div>
+          <h3>Withdrawal Controls</h3>
+          <p>Enable/disable creator withdrawals</p>
+        </a>
+        
+        <a href="withdrawal-requests.html" class="action-card">
+          <div class="action-icon">
+            <i class="fas fa-list-check"></i>
+          </div>
+          <h3>Request Management</h3>
+          <p>Review and process withdrawal requests</p>
+        </a>
+
+        <div class="action-card">
+          <div class="action-icon">
+            <i class="fas fa-user-cog"></i>
+          </div>
+          <h3>User Management</h3>
+          <p>Manage creators and admin users</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recent Activity -->
+    <div class="recent-activity">
+      <h2>Recent Activity</h2>
+      <div class="activity-list" id="recentActivity">
+        <div class="activity-item">
+          <div class="activity-icon success">
+            <i class="fas fa-check"></i>
+          </div>
+          <div class="activity-details">
+            <span class="activity-text">Withdrawal system initialized</span>
+            <span class="activity-time">Just now</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/firebase-config.js"></script>
+  <script src="js/auth-system.js"></script>
+  <script>
+    class AdminDashboard {
+      constructor() {
+        this.init();
+      }
+
+      init() {
+        this.loadAdminData();
+        this.setupRealTimeListeners();
+      }
+
+      async loadAdminData() {
+        try {
+          // Load admin name
+          const userInfo = authSystem.getUserInfo();
+          document.getElementById('adminName').textContent = userInfo.name || 'Admin';
+
+          // Load stats
+          await this.loadStats();
+
+        } catch (error) {
+          console.error('Error loading admin data:', error);
+        }
+      }
+
+      async loadStats() {
+        // Load total creators
+        const creatorsSnapshot = await db.collection('users')
+          .where('role', '==', 'creator')
+          .get();
+        document.getElementById('totalCreators').textContent = creatorsSnapshot.size;
+
+        // Load total earnings
+        const earningsSnapshot = await db.collection('monthlyReports').get();
+        let totalEarnings = 0;
+        earningsSnapshot.forEach(doc => {
+          totalEarnings += doc.data().totalEarnings || 0;
+        });
+        document.getElementById('totalEarnings').textContent = `$${totalEarnings.toLocaleString()}`;
+
+        // Load pending requests
+        const pendingSnapshot = await db.collection('withdrawalRequests')
+          .where('status', '==', 'pending')
+          .get();
+        document.getElementById('pendingRequests').textContent = pendingSnapshot.size;
+
+        // Load active withdrawals
+        const activeSnapshot = await db.collection('monthlyReports')
+          .where('withdrawalEnabled', '==', true)
+          .get();
+        document.getElementById('activeWithdrawals').textContent = activeSnapshot.size;
+      }
+
+      setupRealTimeListeners() {
+        // Real-time updates for stats
+        db.collection('withdrawalRequests')
+          .where('status', '==', 'pending')
+          .onSnapshot(() => {
+            this.loadStats();
+          });
+
+        db.collection('monthlyReports')
+          .where('withdrawalEnabled', '==', true)
+          .onSnapshot(() => {
+            this.loadStats();
+          });
+      }
+    }
+
+    // Initialize dashboard when page loads
+    document.addEventListener('DOMContentLoaded', () => {
+      if (authSystem.userRole === 'admin') {
+        new AdminDashboard();
+      } else {
+        window.location.href = 'index.html';
+      }
+    });
+  </script>
+</body>
+  </html>
