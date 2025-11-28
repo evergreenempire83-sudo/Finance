@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Creator Dashboard - EverNet</title>
+  
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#10B981">
+  
+  <!-- Fonts & Icons -->
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Montserrat:wght@700;800;900&display=swap" rel="stylesheet">
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <link rel="stylesheet" href="styles/creator-styles.css">
+</head>
+<body>
+  <!-- Navigation -->
+  <nav class="creator-nav">
+    <div class="nav-brand">
+      <span class="brand-text">EVERNET CREATOR</span>
+    </div>
+    <div class="nav-links">
+      <a href="creator-dashboard.html" class="nav-link active">
+        <i class="fas fa-tachometer-alt"></i> Dashboard
+      </a>
+      <a href="creator-withdrawal.html" class="nav-link">
+        <i class="fas fa-wallet"></i> Withdraw Funds
+      </a>
+      <a href="#" class="nav-link" onclick="logout()">
+        <i class="fas fa-sign-out-alt"></i> Logout
+      </a>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <div class="creator-container">
+    <!-- Welcome Section -->
+    <div class="welcome-section">
+      <h1>Welcome, <span id="creatorName">Creator</span>! 👋</h1>
+      <p>Manage your earnings and withdraw your funds</p>
+    </div>
+
+    <!-- Stats Overview -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-icon total-earnings">
+          <i class="fas fa-chart-line"></i>
+        </div>
+        <div class="stat-info">
+          <span class="stat-value" id="totalEarnings">$0</span>
+          <span class="stat-label">Total Earnings</span>
+        </div>
+      </div>
+      
+      <div class="stat-card">
+        <div class="stat-icon available">
+          <i class="fas fa-wallet"></i>
+        </div>
+        <div class="stat-info">
+          <span class="stat-value" id="availableBalance">$0</span>
+          <span class="stat-label">Available Now</span>
+        </div>
+      </div>
+      
+      <div class="stat-card">
+        <div class="stat-icon pending">
+          <i class="fas fa-clock"></i>
+        </div>
+        <div class="stat-info">
+          <span class="stat-value" id="pendingWithdrawals">0</span>
+          <span class="stat-label">Pending Requests</span>
+        </div>
+      </div>
+      
+      <div class="stat-card">
+        <div class="stat-icon completed">
+          <i class="fas fa-check-circle"></i>
+        </div>
+        <div class="stat-info">
+          <span class="stat-value" id="completedWithdrawals">0</span>
+          <span class="stat-label">Completed</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="quick-actions">
+      <h2>Quick Actions</h2>
+      <div class="action-grid">
+        <a href="creator-withdrawal.html" class="action-card primary">
+          <div class="action-icon">
+            <i class="fas fa-money-bill-wave"></i>
+          </div>
+          <h3>Withdraw Funds</h3>
+          <p>Request withdrawal from available earnings</p>
+          <span class="action-badge" id="availableReportsCount">0 available</span>
+        </a>
+        
+        <div class="action-card">
+          <div class="action-icon">
+            <i class="fas fa-history"></i>
+          </div>
+          <h3>Withdrawal History</h3>
+          <p>View your previous withdrawal requests</p>
+        </div>
+        
+        <div class="action-card">
+          <div class="action-icon">
+            <i class="fas fa-file-invoice-dollar"></i>
+          </div>
+          <h3>Earnings Report</h3>
+          <p>View detailed earnings breakdown</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recent Activity -->
+    <div class="recent-activity">
+      <div class="section-header">
+        <h2>Recent Activity</h2>
+        <a href="creator-withdrawal.html" class="view-all">View All</a>
+      </div>
+      <div class="activity-list" id="recentActivity">
+        <!-- Activity items loaded dynamically -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Notification -->
+  <div id="notification" class="notification"></div>
+
+  <script src="js/firebase-config.js"></script>
+  <script src="js/auth-system.js"></script>
+  <script src="js/creator-withdrawal.js"></script>
+  <script>
+    class CreatorDashboard {
+      constructor() {
+        this.creatorId = authSystem.currentUser?.uid;
+        this.init();
+      }
+
+      init() {
+        this.loadCreatorData();
+        this.setupRealTimeListeners();
+      }
+
+      async loadCreatorData() {
+        if (!this.creatorId) return;
+
+        try {
+          // Load creator name
+          const userDoc = await db.collection('users').doc(this.creatorId).get();
+          if (userDoc.exists) {
+            const userData = userDoc.data();
+            document.getElementById('creatorName').textContent = userData.name || 'Creator';
+          }
+
+          // Load stats
+          await this.loadStats();
+          // Load recent activity
+          await this.loadRecentActivity();
+
+        } catch (error) {
+          console.error('Error loading creator data:', error);
+        }
+      }
+
+      async loadStats() {
+        // Load available reports count
+        const availableSnapshot = await db.collection('monthlyReports')
+          .where('creatorId', '==', this.creatorId)
+          .where('withdrawalEnabled', '==', true)
+          .where('status', '==', 'unsettled')
+          .get();
+
+        document.getElementById('availableReportsCount').textContent = 
+          `${availableSnapshot.size} available`;
+
+        // Calculate total available balance
+        let availableBalance = 0;
+        availableSnapshot.forEach(doc => {
+          availableBalance += doc.data().totalEarnings || 0;
+        });
+
+        document.getElementById('availableBalance').textContent = `$${availableBalance.toLocaleString()}`;
+
+        // Load pending withdrawals count
+        const pendingSnapshot = await db.collection('withdrawalRequests')
+          .where('creatorId', '==', this.creatorId)
+          .where('status', '==', 'pending')
+          .get();
+
+        document.getElementById('pendingWithdrawals').textContent = pendingSnapshot.size;
+
+        // Load completed withdrawals count
+        const completedSnapshot = await db.collection('withdrawalRequests')
+          .where('creatorId', '==', this.creatorId)
+          .where('status', '==', 'paid')
+          .get();
+
+        document.getElementById('completedWithdrawals').textContent = completedSnapshot.size;
+
+        // Calculate total earnings (all reports)
+        const allReportsSnapshot = await db.collection('monthlyReports')
+          .where('creatorId', '==', this.creatorId)
+          .get();
+
+        let totalEarnings = 0;
+        allReportsSnapshot.forEach(doc => {
+          totalEarnings += doc.data().totalEarnings || 0;
+        });
+
+        document.getElementById('totalEarnings').textContent = `$${totalEarnings.toLocaleString()}`;
+      }
+
+      async loadRecentActivity() {
+        const activityList = document.getElementById('recentActivity');
+        
+        const requestsSnapshot = await db.collection('withdrawalRequests')
+          .where('creatorId', '==', this.creatorId)
+          .orderBy('requestedAt', 'desc')
+          .limit(5)
+          .get();
+
+        if (requestsSnapshot.empty) {
+          activityList.innerHTML = `
+            <div class="empty-state">
+              <i class="fas fa-exchange-alt"></i>
+              <p>No withdrawal activity yet</p>
+              <a href="creator-withdrawal.html" class="btn-primary">Make Your First Withdrawal</a>
+            </div>
+          `;
+          return;
+        }
+
+        activityList.innerHTML = requestsSnapshot.docs.map(doc => {
+          const request = doc.data();
+          return this.createActivityItem(request);
+        }).join('');
+      }
+
+      createActivityItem(request) {
+        const statusConfig = {
+          'pending': { class: 'pending', icon: 'fa-clock', text: 'Pending Review' },
+          'approved': { class: 'approved', icon: 'fa-check', text: 'Approved' },
+          'paid': { class: 'paid', icon: 'fa-money-bill', text: 'Paid' },
+          'rejected': { class: 'rejected', icon: 'fa-times', text: 'Rejected' }
+        };
+
+        const config = statusConfig[request.status] || statusConfig.pending;
+        const date = request.requestedAt?.toDate().toLocaleDateString() || 'Unknown date';
+
+        return `
+          <div class="activity-item">
+            <div class="activity-icon ${config.class}">
+              <i class="fas ${config.icon}"></i>
+            </div>
+            <div class="activity-details">
+              <span class="activity-text">Withdrawal request for $${request.amount}</span>
+              <span class="activity-meta">
+                <span class="activity-status ${config.class}">${config.text}</span>
+                <span class="activity-time">${date}</span>
+              </span>
+            </div>
+          </div>
+        `;
+      }
+
+      setupRealTimeListeners() {
+        // Real-time updates for withdrawal requests
+        db.collection('withdrawalRequests')
+          .where('creatorId', '==', this.creatorId)
+          .onSnapshot((snapshot) => {
+            this.loadStats();
+            this.loadRecentActivity();
+          });
+
+        // Real-time updates for monthly reports
+        db.collection('monthlyReports')
+          .where('creatorId', '==', this.creatorId)
+          .onSnapshot((snapshot) => {
+            this.loadStats();
+          });
+      }
+    }
+
+    // Initialize dashboard when page loads
+    document.addEventListener('DOMContentLoaded', () => {
+      if (authSystem.userRole === 'creator') {
+        new CreatorDashboard();
+      } else {
+        window.location.href = 'index.html';
+      }
+    });
+  </script>
+</body>
+      </html>
