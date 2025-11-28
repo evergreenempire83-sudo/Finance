@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Withdrawal Requests - EverNet</title>
+  
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#001f3f">
+  
+  <!-- Fonts & Icons -->
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Montserrat:wght@700;800;900&display=swap" rel="stylesheet">
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <link rel="stylesheet" href="styles/financial-styles.css">
+  <link rel="stylesheet" href="styles/withdrawal-styles.css">
+</head>
+<body>
+  <!-- Navigation -->
+  <nav class="financial-nav">
+    <div class="nav-brand">
+      <span class="brand-text">EVERNET FINANCE</span>
+    </div>
+    <div class="nav-links">
+      <a href="financial-portal.html" class="nav-link">
+        <i class="fas fa-chart-line"></i> Dashboard
+      </a>
+      <a href="withdrawal-management.html" class="nav-link">
+        <i class="fas fa-toggle-on"></i> Manage Withdrawals
+      </a>
+      <a href="withdrawal-requests.html" class="nav-link active">
+        <i class="fas fa-list-check"></i> Requests
+      </a>
+      <a href="#" class="nav-link" onclick="logout()">
+        <i class="fas fa-sign-out-alt"></i> Logout
+      </a>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <div class="financial-container">
+    <!-- Page Header -->
+    <div class="page-header">
+      <h1>Withdrawal Requests 📋</h1>
+      <p>Review and process creator withdrawal requests</p>
+    </div>
+
+    <!-- Stats Overview -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-icon pending">
+          <i class="fas fa-clock"></i>
+        </div>
+        <div class="stat-info">
+          <span class="stat-value" id="pendingCount">0</span>
+          <span class="stat-label">Pending Requests</span>
+        </div>
+      </div>
+      
+      <div class="stat-card">
+        <div class="stat-icon approved">
+          <i class="fas fa-check-circle"></i>
+        </div>
+        <div class="stat-info">
+          <span class="stat-value" id="approvedCount">0</span>
+          <span class="stat-label">Approved</span>
+        </div>
+      </div>
+      
+      <div class="stat-card">
+        <div class="stat-icon paid">
+          <i class="fas fa-money-bill-wave"></i>
+        </div>
+        <div class="stat-info">
+          <span class="stat-value" id="paidCount">0</span>
+          <span class="stat-label">Paid Out</span>
+        </div>
+      </div>
+      
+      <div class="stat-card">
+        <div class="stat-icon total">
+          <i class="fas fa-chart-bar"></i>
+        </div>
+        <div class="stat-info">
+          <span class="stat-value" id="totalAmount">$0</span>
+          <span class="stat-label">Total Processed</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Filter Controls -->
+    <div class="filter-section">
+      <div class="filter-group">
+        <label>Status:</label>
+        <select id="statusFilter" onchange="filterRequests()">
+          <option value="all">All Status</option>
+          <option value="pending">Pending</option>
+          <option value="approved">Approved</option>
+          <option value="paid">Paid</option>
+          <option value="rejected">Rejected</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>Date Range:</label>
+        <select id="dateFilter" onchange="filterRequests()">
+          <option value="all">All Time</option>
+          <option value="today">Today</option>
+          <option value="week">This Week</option>
+          <option value="month">This Month</option>
+        </select>
+      </div>
+      <div class="filter-actions">
+        <button class="btn-export" onclick="exportRequests()">
+          <i class="fas fa-download"></i> Export
+        </button>
+      </div>
+    </div>
+
+    <!-- Requests Table -->
+    <div class="requests-table-section">
+      <div class="section-header">
+        <h2>Withdrawal Requests</h2>
+        <div class="table-actions">
+          <span class="results-count" id="resultsCount">0 requests</span>
+        </div>
+      </div>
+
+      <div class="table-container">
+        <table class="requests-table">
+          <thead>
+            <tr>
+              <th>Creator</th>
+              <th>Report Period</th>
+              <th>Amount</th>
+              <th>Requested</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="requestsTableBody">
+            <!-- Requests loaded dynamically -->
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Empty State -->
+      <div class="empty-state" id="noRequestsEmpty" style="display: none;">
+        <div class="empty-icon">
+          <i class="fas fa-inbox"></i>
+        </div>
+        <h3>No Withdrawal Requests</h3>
+        <p>There are no withdrawal requests matching your filters.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Action Modal -->
+  <div id="actionModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="modalTitle">Process Request</h3>
+        <button class="modal-close"
