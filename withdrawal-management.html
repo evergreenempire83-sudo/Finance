@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Withdrawal Management - EverNet</title>
+  
+  <!-- PWA Manifest -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#001f3f">
+  
+  <!-- Fonts & Icons -->
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Montserrat:wght@700;800;900&display=swap" rel="stylesheet">
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <link rel="stylesheet" href="financial-styles.css">
+</head>
+<body>
+  <!-- Navigation -->
+  <nav class="financial-nav">
+    <div class="nav-brand">
+      <span class="brand-text">EVERNET FINANCE</span>
+    </div>
+    <div class="nav-links">
+      <a href="financial-portal.html" class="nav-link">
+        <i class="fas fa-chart-line"></i> Dashboard
+      </a>
+      <a href="withdrawal-management.html" class="nav-link active">
+        <i class="fas fa-money-bill-wave"></i> Withdrawals
+      </a>
+      <a href="#" class="nav-link" onclick="logout()">
+        <i class="fas fa-sign-out-alt"></i> Logout
+      </a>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <div class="financial-container">
+    <!-- Page Header -->
+    <div class="page-header">
+      <h1>Withdrawal Management</h1>
+      <p>Control creator withdrawal access for monthly reports</p>
+    </div>
+
+    <!-- Status Legend -->
+    <div class="status-legend">
+      <div class="legend-item">
+        <span class="status-dot enabled"></span>
+        <span>Enabled - Creators can withdraw</span>
+      </div>
+      <div class="legend-item">
+        <span class="status-dot disabled"></span>
+        <span>Disabled - Manual off</span>
+      </div>
+      <div class="legend-item">
+        <span class="status-dot auto-disabled"></span>
+        <span>Auto-Disabled - Report settled</span>
+      </div>
+    </div>
+
+    <!-- Reports Table -->
+    <div class="reports-section">
+      <div class="section-header">
+        <h2>Monthly Reports</h2>
+        <div class="filter-controls">
+          <select id="statusFilter" onchange="filterReports()">
+            <option value="all">All Status</option>
+            <option value="enabled">Enabled Only</option>
+            <option value="disabled">Disabled Only</option>
+            <option value="auto-disabled">Auto-Disabled Only</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="reports-table-container">
+        <table class="reports-table">
+          <thead>
+            <tr>
+              <th>Creator</th>
+              <th>Month</th>
+              <th>Earnings</th>
+              <th>Report Status</th>
+              <th>Withdrawal Access</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="reportsTableBody">
+            <!-- Reports will be loaded here -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Notification -->
+  <div id="notification" class="notification"></div>
+
+  <script src="firebase-config.js"></script>
+  <script src="withdrawal-system.js"></script>
+  <script>
+    let allReports = [];
+
+    document.addEventListener('DOMContentLoaded', function() {
+      loadMonthlyReports();
+    });
+
+    async function loadMonthlyReports() {
+      try {
+        const snapshot = await db.collection('monthlyReports')
+          .orderBy('month', 'desc')
+          .get();
+        
+        allReports = [];
+        snapshot.forEach(doc => {
+          allReports.push({
+            id: doc.id,
+            ...doc.data()
+          });
+        });
+
+        displayReports(allReports);
+      } catch (error) {
+        console.error('Error loading reports:', error);
+        showNotification('Error loading reports: ' + error.message, 'error');
+      }
+    }
+
+    function displayReports(reports) {
+      const tbody = document.getElementById('reportsTableBody');
+      
+      if (reports.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="6" class="no-data">No monthly reports found</td>
+          </tr>
+        `;
+        return;
+      }
+
+      tbody.innerHTML = reports.map(report => `
+        <tr>
+          <td>
+            <div class="creator-info">
+              <span class="creator-name">${report.creatorName || 'Unknown Creator'}</span>
+              <span class="creator-email">${report.creatorEmail || ''}</span>
+            </div>
+          </td>
+          <td>${formatMonth(report.month)}</td>
+          <td class="earnings">$${(report.totalEarnings || 0).toLocaleString()}</td>
+          <td>
+            <span class="status-badge ${report.status || 'unsettled'}">
+              ${(report.status || 'unsettled').toUpperCase()}
+            </span>
+          </td>
+          <td>
+            <div class="withdrawal-status">
+              <span class="status-indicator ${getWithdrawalStatus(report)}"></span>
+              <span class="status-text">${getWithdrawalStatusText(report)}</span>
+            </div>
+          </td>
+          <td>
+            <div class="action-buttons">
+              <button class="btn-view" onclick="viewReport('${report.id}')">
+                <i class="fas fa-eye"></i> View
+              </button>
+              ${report.status !== 'settled' ? `
+                <button class="btn-settle" onclick="settleReport('${report.id}')">
+                  <i class="fas fa-check"></i> Settle
+                </button>
+              ` : ''}
+              <button class="btn-toggle ${getToggleButtonClass(report)}" 
+                      onclick="toggleWithdrawal('${report.id}')"
+                      ${report.status === 'settled' ? 'disabled' : ''}>
+                <i class="fas ${getToggleIcon(report)}"></i>
+                ${getToggleText(report)}
+              </button>
+            </div>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function getWithdrawalStatus(report) {
+      if (report.status === 'settled') return 'auto-disabled';
+      return report.withdrawalEnabled ? 'enabled' : 'disabled';
+    }
+
+    function getWithdrawalStatusText(report) {
+      if (report.status === 'settled') return 'Auto-Disabled';
+      return report.withdrawalEnabled ? 'Enabled' : 'Disabled';
+    }
+
+    function getToggleButtonClass(report) {
+      if (report.status === 'settled') return 'btn-disabled';
+      return report.withdrawalEnabled ? 'btn-disable' : 'btn-enable';
+    }
+
+    function getToggleIcon(report) {
+      if (report.status === 'settled') return 'fa-ban';
+      return report.withdrawalEnabled ? 'fa-toggle-off' : 'fa-toggle-on';
+    }
+
+    function getToggleText(report) {
+      if (report.status === 'settled') return 'Locked';
+      return report.withdrawalEnabled ? 'Disable' : 'Enable';
+    }
+
+    function formatMonth(monthString) {
+      if (!monthString) return 'Unknown';
+      const [year, month] = monthString.split('-');
+      const date = new Date(year, month - 1);
+      return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
+    }
+
+    function filterReports() {
+      const filter = document.getElementById('statusFilter').value;
+      
+      if (filter === 'all') {
+        displayReports(allReports);
+        return;
+      }
+
+      const filteredReports = allReports.filter(report => {
+        const status = getWithdrawalStatus(report);
+        return status === filter;
+      });
+
+      displayReports(filteredReports);
+    }
+
+    async function logout() {
+      try {
+        await auth.signOut();
+        window.location.href = 'index.html';
+      } catch (error) {
+        console.error('Logout error:', error);
+      }
+    }
+
+    function showNotification(message, type = 'error') {
+      const notification = document.getElementById('notification');
+      notification.textContent = message;
+      notification.className = `notification ${type}`;
+      notification.style.display = 'block';
+      
+      setTimeout(() => {
+        notification.style.display = 'none';
+      }, 5000);
+    }
+  </script>
+</body>
+</html>
