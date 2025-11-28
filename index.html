@@ -3,32 +3,15 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>EverNet Portal</title>
-  
-  <!-- PWA -->
-  <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#001f3f">
-  
-  <!-- Fonts & Icons -->
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Montserrat:wght@700;800;900&display=swap" rel="stylesheet">
-  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <title>EverNet Portal - DEBUG</title>
   
   <style>
     :root {
       --navy: #001f3f;
       --dark-navy: #00152c;
-      --gold: #d4af37;
-      --light-gold: #e6d4a8;
-      --white: #ffffff;
-      --light: #f8fafc;
       --success: #10B981;
       --danger: #EF4444;
-      --warning: #F59E0B;
       --creator: #8B5CF6;
-      --finance: #06B6D4;
     }
 
     * {
@@ -48,60 +31,20 @@
     }
 
     .login-container {
-      background: var(--white);
+      background: white;
       border-radius: 20px;
       padding: 40px;
       box-shadow: 0 25px 50px rgba(0, 0, 0, 0.25);
       width: 100%;
       max-width: 450px;
-      position: relative;
-      z-index: 1;
     }
 
     .brand {
-      font-family: "Montserrat", sans-serif;
       font-size: 2em;
       font-weight: 900;
       text-align: center;
-      margin-bottom: 20px;
-      background: linear-gradient(135deg, var(--navy) 0%, var(--creator) 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-    }
-
-    .portal-badges {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-      margin-bottom: 25px;
-    }
-
-    .portal-badge {
-      padding: 12px;
-      border-radius: 12px;
-      text-align: center;
-      font-weight: 600;
-      border: 2px solid transparent;
-      transition: all 0.3s ease;
-    }
-
-    .portal-badge.admin {
-      background: rgba(139, 92, 246, 0.1);
-      color: var(--creator);
-      border-color: var(--creator);
-    }
-
-    .portal-badge.creator {
-      background: rgba(16, 185, 129, 0.1);
-      color: var(--success);
-      border-color: var(--success);
-    }
-
-    .portal-badge.finance {
-      background: rgba(6, 182, 212, 0.1);
-      color: var(--finance);
-      border-color: var(--finance);
+      margin-bottom: 30px;
+      color: var(--navy);
     }
 
     .form-group {
@@ -121,13 +64,11 @@
       border: 2px solid #e2e8f0;
       border-radius: 10px;
       font-size: 1em;
-      transition: all 0.3s ease;
     }
 
     .form-input:focus {
       outline: none;
       border-color: var(--creator);
-      box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
     }
 
     .btn {
@@ -136,25 +77,14 @@
       border: none;
       border-radius: 12px;
       font-weight: 600;
-      transition: all 0.4s ease;
       cursor: pointer;
       font-size: 1em;
-      text-align: center;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
+      background: var(--navy);
+      color: white;
     }
 
-    .btn.main {
-      background: linear-gradient(135deg, var(--navy) 0%, var(--dark-navy) 100%);
-      color: var(--white);
-      box-shadow: 0 8px 30px rgba(0, 31, 63, 0.2);
-    }
-
-    .btn.main:hover {
-      transform: translateY(-3px);
-      box-shadow: 0 12px 40px rgba(0, 31, 63, 0.3);
+    .btn:hover {
+      background: var(--dark-navy);
     }
 
     .notification {
@@ -169,60 +99,166 @@
 
     .notification.error {
       background: var(--danger);
-      display: block;
     }
 
     .notification.success {
       background: var(--success);
-      display: block;
     }
 
-    .access-info {
-      text-align: center;
-      margin-top: 15px;
-      padding: 12px;
-      background: var(--light);
+    .debug-info {
+      margin-top: 20px;
+      padding: 15px;
+      background: #f8fafc;
       border-radius: 8px;
-      font-size: 0.85em;
-      color: var(--navy);
-      border-left: 4px solid var(--creator);
+      font-size: 0.8em;
+      color: #64748b;
     }
   </style>
 </head>
 <body>
   <div class="login-container">
-    <div class="brand">EVERNET PORTAL</div>
-    
-    <div class="portal-badges">
-      <div class="portal-badge admin">Admin Portal</div>
-      <div class="portal-badge finance">Finance Portal</div>
-      <div class="portal-badge creator">Creator Portal</div>
-      <div class="portal-badge finance">Withdrawal System</div>
-    </div>
+    <div class="brand">EVERNET PORTAL - DEBUG</div>
     
     <div id="notification" class="notification"></div>
     
     <div class="form-group">
       <label class="form-label">Email Address</label>
-      <input type="email" class="form-input" id="email" placeholder="your-email@evergreenempireltd.com">
+      <input type="email" class="form-input" id="email" placeholder="test@evernet.com" value="test@evernet.com">
     </div>
     
     <div class="form-group">
       <label class="form-label">Password</label>
-      <input type="password" class="form-input" id="password" placeholder="Enter your password">
+      <input type="password" class="form-input" id="password" placeholder="Enter password" value="password123">
     </div>
     
-    <button class="btn main" onclick="login()">
-      <i class="fas fa-sign-in-alt"></i> Login to Portal
+    <button class="btn" onclick="login()">
+      Login to Portal
     </button>
-    
-    <div class="access-info">
-      <i class="fas fa-shield-alt"></i>
-      Role-based access • Secure authentication • Real-time updates
+
+    <div class="debug-info">
+      <strong>Debug Info:</strong><br>
+      <div id="debugOutput">Click login to see debug info...</div>
     </div>
   </div>
 
-  <script src="js/firebase-config.js"></script>
-  <script src="js/auth-system.js"></script>
+  <!-- SIMPLIFIED FIREBASE CONFIG -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+
+  <script>
+    // Firebase Configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyAuSEqhLenwrEz-qrIn1drjAugy1YSkDlI",
+      authDomain: "creators-portal-428c5.firebaseapp.com",
+      projectId: "creators-portal-428c5",
+      storageBucket: "creators-portal-428c5.firebasestorage.app",
+      messagingSenderId: "499280036303",
+      appId: "1:499280036303:web:b4d80d3b7fe1291381d2ba",
+      measurementId: "G-CYWGD80FS5"
+    };
+
+    // Initialize Firebase
+    const app = firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+
+    // Debug output
+    function debugLog(message) {
+      console.log(message);
+      document.getElementById('debugOutput').innerHTML += message + '<br>';
+    }
+
+    // Show notification
+    function showNotification(message, type = 'error') {
+      const notification = document.getElementById('notification');
+      notification.textContent = message;
+      notification.className = `notification ${type}`;
+      notification.style.display = 'block';
+    }
+
+    // SIMPLIFIED LOGIN FUNCTION
+    async function login() {
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+
+      debugLog('=== LOGIN STARTED ===');
+      debugLog('Email: ' + email);
+      debugLog('Password: ' + (password ? '***' : 'empty'));
+
+      if (!email || !password) {
+        showNotification('Please enter both email and password');
+        return;
+      }
+
+      try {
+        debugLog('Attempting Firebase login...');
+        
+        const userCredential = await auth.signInWithEmailAndPassword(email, password);
+        const user = userCredential.user;
+        
+        debugLog('✅ Firebase login successful!');
+        debugLog('User UID: ' + user.uid);
+        debugLog('User Email: ' + user.email);
+
+        // Check if user exists in Firestore
+        debugLog('Checking user role in Firestore...');
+        const userDoc = await db.collection('users').doc(user.uid).get();
+        
+        if (userDoc.exists) {
+          const userData = userDoc.data();
+          debugLog('✅ User found in Firestore');
+          debugLog('User Role: ' + userData.role);
+          debugLog('User Name: ' + userData.name);
+
+          showNotification('Login successful! Redirecting...', 'success');
+          
+          // Simple redirect based on role
+          setTimeout(() => {
+            if (userData.role === 'creator') {
+              window.location.href = 'creator-dashboard.html';
+            } else if (userData.role === 'finance') {
+              window.location.href = 'financial-portal.html';
+            } else {
+              window.location.href = 'admin-portal.html';
+            }
+          }, 2000);
+
+        } else {
+          debugLog('❌ User NOT found in Firestore');
+          showNotification('User profile not found. Please contact admin.');
+          await auth.signOut();
+        }
+
+      } catch (error) {
+        debugLog('❌ Login error: ' + error.message);
+        debugLog('Error code: ' + error.code);
+        
+        let errorMessage = 'Login failed: ' + error.message;
+        
+        if (error.code === 'auth/user-not-found') {
+          errorMessage = 'No account found with this email';
+        } else if (error.code === 'auth/wrong-password') {
+          errorMessage = 'Incorrect password';
+        } else if (error.code === 'auth/invalid-email') {
+          errorMessage = 'Invalid email address';
+        }
+        
+        showNotification(errorMessage);
+      }
+    }
+
+    // Allow Enter key login
+    document.addEventListener('keypress', function(event) {
+      if (event.key === 'Enter') {
+        login();
+      }
+    });
+
+    // Test Firebase connection on load
+    debugLog('Firebase app initialized: ' + (app ? 'Yes' : 'No'));
+    debugLog('Auth service: ' + (auth ? 'Ready' : 'Not ready'));
+    debugLog('Firestore: ' + (db ? 'Ready' : 'Not ready'));
+  </script>
 </body>
 </html>
