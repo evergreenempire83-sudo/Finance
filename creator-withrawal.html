@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Withdraw Funds - EverNet</title>
+  
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#10B981">
+  
+  <!-- Fonts & Icons -->
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Montserrat:wght@700;800;900&display=swap" rel="stylesheet">
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <link rel="stylesheet" href="styles/creator-styles.css">
+  <link rel="stylesheet" href="styles/withdrawal-styles.css">
+</head>
+<body>
+  <!-- Navigation -->
+  <nav class="creator-nav">
+    <div class="nav-brand">
+      <span class="brand-text">EVERNET CREATOR</span>
+    </div>
+    <div class="nav-links">
+      <a href="creator-dashboard.html" class="nav-link">
+        <i class="fas fa-tachometer-alt"></i> Dashboard
+      </a>
+      <a href="creator-withdrawal.html" class="nav-link active">
+        <i class="fas fa-wallet"></i> Withdraw Funds
+      </a>
+      <a href="#" class="nav-link" onclick="logout()">
+        <i class="fas fa-sign-out-alt"></i> Logout
+      </a>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <div class="creator-container">
+    <!-- Page Header -->
+    <div class="page-header">
+      <h1>Withdraw Your Earnings 💰</h1>
+      <p>Request withdrawals from your available monthly reports</p>
+    </div>
+
+    <!-- Available Balance Card -->
+    <div class="balance-card">
+      <div class="balance-info">
+        <div class="balance-icon">
+          <i class="fas fa-wallet"></i>
+        </div>
+        <div class="balance-details">
+          <span class="balance-label">Available for Withdrawal</span>
+          <span class="balance-amount" id="totalAvailable">$0.00</span>
+        </div>
+      </div>
+      <div class="balance-actions">
+        <span class="reports-count" id="availableReportsCount">0 reports available</span>
+      </div>
+    </div>
+
+    <!-- Available Reports Section -->
+    <div class="reports-section">
+      <div class="section-header">
+        <h2>Available Reports</h2>
+        <div class="section-subtitle">These reports are ready for withdrawal</div>
+      </div>
+
+      <div class="reports-grid" id="availableReports">
+        <!-- Available reports loaded dynamically -->
+      </div>
+
+      <!-- Empty State -->
+      <div class="empty-state" id="noReportsEmpty" style="display: none;">
+        <div class="empty-icon">
+          <i class="fas fa-calendar-times"></i>
+        </div>
+        <h3>No Reports Available</h3>
+        <p>There are no reports available for withdrawal at the moment.</p>
+        <small>Financial team will enable withdrawals when reports are ready</small>
+      </div>
+    </div>
+
+    <!-- Pending Requests Section -->
+    <div class="pending-section">
+      <div class="section-header">
+        <h2>Pending Withdrawal Requests</h2>
+        <div class="section-subtitle">Your recent withdrawal requests</div>
+      </div>
+
+      <div class="requests-list" id="pendingRequests">
+        <!-- Pending requests loaded dynamically -->
+      </div>
+
+      <div class="empty-state" id="noPendingEmpty" style="display: none;">
+        <div class="empty-icon">
+          <i class="fas fa-clock"></i>
+        </div>
+        <h3>No Pending Requests</h3>
+        <p>You don't have any pending withdrawal requests.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Withdrawal Modal -->
+  <div id="withdrawalModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Confirm Withdrawal</h3>
+        <button class="modal-close" onclick="closeModal()">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="withdrawal-details">
+          <div class="detail-item">
+            <span class="detail-label">Report Period:</span>
+            <span class="detail-value" id="modalMonth">January 2024</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">Amount:</span>
+            <span class="detail-value amount" id="modalAmount">$0.00</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">Payment Method:</span>
+            <span class="detail-value">Bank Transfer</span>
+          </div>
+        </div>
+        
+        <div class="withdrawal-notice">
+          <i class="fas fa-info-circle"></i>
+          <p>Withdrawal requests are typically processed within 3-5 business days. You'll receive a confirmation email once processed.</p>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeModal()">Cancel</button>
+        <button class="btn-primary" onclick="confirmWithdrawal()">
+          <i class="fas fa-paper-plane"></i> Submit Request
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Notification -->
+  <div id="notification" class="notification"></div>
+
+  <script src="js/firebase-config.js"></script>
+  <script src="js/auth-system.js"></script>
+  <script src="js/creator-withdrawal.js"></script>
+</body>
+  </html>
