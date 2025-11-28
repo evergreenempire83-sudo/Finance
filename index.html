@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Financial Portal - EverNet</title>
+  
+  <!-- PWA Manifest -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#001f3f">
+  
+  <!-- Fonts & Icons -->
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Montserrat:wght@700;800;900&display=swap" rel="stylesheet">
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <link rel="stylesheet" href="financial-styles.css">
+</head>
+<body>
+  <!-- Navigation -->
+  <nav class="financial-nav">
+    <div class="nav-brand">
+      <span class="brand-text">EVERNET FINANCE</span>
+    </div>
+    <div class="nav-links">
+      <a href="financial-portal.html" class="nav-link active">
+        <i class="fas fa-chart-line"></i> Dashboard
+      </a>
+      <a href="withdrawal-management.html" class="nav-link">
+        <i class="fas fa-money-bill-wave"></i> Withdrawals
+      </a>
+      <a href="#" class="nav-link" onclick="logout()">
+        <i class="fas fa-sign-out-alt"></i> Logout
+      </a>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <div class="financial-container">
+    <!-- Dashboard Header -->
+    <div class="dashboard-header">
+      <h1>Financial Dashboard</h1>
+      <div class="header-stats">
+        <div class="stat-card">
+          <div class="stat-icon">
+            <i class="fas fa-wallet"></i>
+          </div>
+          <div class="stat-info">
+            <span class="stat-value" id="totalEarnings">$0</span>
+            <span class="stat-label">Total Earnings</span>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">
+            <i class="fas fa-check-circle"></i>
+          </div>
+          <div class="stat-info">
+            <span class="stat-value" id="enabledWithdrawals">0</span>
+            <span class="stat-label">Enabled Withdrawals</span>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">
+            <i class="fas fa-users"></i>
+          </div>
+          <div class="stat-info">
+            <span class="stat-value" id="activeCreators">0</span>
+            <span class="stat-label">Active Creators</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="quick-actions">
+      <h2>Quick Actions</h2>
+      <div class="action-grid">
+        <div class="action-card" onclick="window.location.href='withdrawal-management.html'">
+          <div class="action-icon">
+            <i class="fas fa-toggle-on"></i>
+          </div>
+          <h3>Manage Withdrawals</h3>
+          <p>Enable/disable withdrawal access for monthly reports</p>
+        </div>
+        <div class="action-card">
+          <div class="action-icon">
+            <i class="fas fa-file-invoice-dollar"></i>
+          </div>
+          <h3>Monthly Reports</h3>
+          <p>View and manage creator earnings reports</p>
+        </div>
+        <div class="action-card">
+          <div class="action-icon">
+            <i class="fas fa-history"></i>
+          </div>
+          <h3>Transaction History</h3>
+          <p>View all withdrawal transactions and history</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recent Activity -->
+    <div class="recent-activity">
+      <h2>Recent Withdrawal Activity</h2>
+      <div class="activity-list" id="recentActivity">
+        <!-- Activity items will be loaded here -->
+      </div>
+    </div>
+  </div>
+
+  <script src="firebase-config.js"></script>
+  <script src="withdrawal-system.js"></script>
+  <script>
+    // Load dashboard data
+    document.addEventListener('DOMContentLoaded', function() {
+      loadDashboardData();
+    });
+
+    async function loadDashboardData() {
+      try {
+        // Load total earnings
+        const earningsSnapshot = await db.collection('monthlyReports')
+          .where('status', '==', 'unsettled')
+          .get();
+        
+        let totalEarnings = 0;
+        earningsSnapshot.forEach(doc => {
+          totalEarnings += doc.data().totalEarnings || 0;
+        });
+        
+        document.getElementById('totalEarnings').textContent = `$${totalEarnings.toLocaleString()}`;
+
+        // Load enabled withdrawals count
+        const enabledSnapshot = await db.collection('monthlyReports')
+          .where('withdrawalEnabled', '==', true)
+          .get();
+        
+        document.getElementById('enabledWithdrawals').textContent = enabledSnapshot.size;
+
+        // Load active creators count
+        const creatorsSnapshot = await db.collection('users')
+          .where('role', '==', 'creator')
+          .get();
+        
+        document.getElementById('activeCreators').textContent = creatorsSnapshot.size;
+
+        // Load recent activity
+        loadRecentActivity();
+
+      } catch (error) {
+        console.error('Error loading dashboard data:', error);
+      }
+    }
+
+    function loadRecentActivity() {
+      // This would load recent withdrawal transactions
+      const activityList = document.getElementById('recentActivity');
+      activityList.innerHTML = `
+        <div class="activity-item">
+          <div class="activity-icon success">
+            <i class="fas fa-check"></i>
+          </div>
+          <div class="activity-details">
+            <span class="activity-text">Withdrawal enabled for January 2024 reports</span>
+            <span class="activity-time">2 hours ago</span>
+          </div>
+        </div>
+        <div class="activity-item">
+          <div class="activity-icon warning">
+            <i class="fas fa-ban"></i>
+          </div>
+          <div class="activity-details">
+            <span class="activity-text">Report marked as settled - auto-disabled withdrawals</span>
+            <span class="activity-time">1 day ago</span>
+          </div>
+        </div>
+      `;
+    }
+
+    async function logout() {
+      try {
+        await auth.signOut();
+        window.location.href = 'index.html';
+      } catch (error) {
+        console.error('Logout error:', error);
+      }
+    }
+  </script>
+</body>
+              </html>
