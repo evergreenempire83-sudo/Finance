@@ -163,4 +163,422 @@
     <div class="modal-content">
       <div class="modal-header">
         <h3 id="modalTitle">Process Request</h3>
-        <button class="modal-close"
+        <button class="modal-close" onclick="closeActionModal()">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="request-details" id="modalRequestDetails">
+          <!-- Request details loaded dynamically -->
+        </div>
+        
+        <div class="action-section" id="actionSection">
+          <!-- Action buttons loaded based on status -->
+        </div>
+
+        <div class="notes-section">
+          <label for="adminNotes">Admin Notes (Optional):</label>
+          <textarea id="adminNotes" placeholder="Add any notes about this request..."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeActionModal()">Cancel</button>
+        <div class="action-buttons" id="modalActionButtons">
+          <!-- Action buttons loaded dynamically -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Notification -->
+  <div id="notification" class="notification"></div>
+
+  <script src="js/firebase-config.js"></script>
+  <script src="js/auth-system.js"></script>
+  <script src="js/withdrawal-system.js"></script>
+  <script>
+    class WithdrawalRequestsManager {
+      constructor() {
+        this.allRequests = [];
+        this.filteredRequests = [];
+        this.currentRequest = null;
+        this.init();
+      }
+
+      init() {
+        this.loadWithdrawalRequests();
+        this.setupRealTimeListeners();
+      }
+
+      async loadWithdrawalRequests() {
+        try {
+          const snapshot = await db.collection('withdrawalRequests')
+            .orderBy('requestedAt', 'desc')
+            .get();
+
+          this.allRequests = [];
+          snapshot.forEach(doc => {
+            this.allRequests.push({
+              id: doc.id,
+              ...doc.data()
+            });
+          });
+
+          this.filterRequests();
+          this.updateStats();
+
+        } catch (error) {
+          console.error('Error loading withdrawal requests:', error);
+          this.showNotification('Error loading requests', 'error');
+        }
+      }
+
+      filterRequests() {
+        const statusFilter = document.getElementById('statusFilter').value;
+        const dateFilter = document.getElementById('dateFilter').value;
+        const now = new Date();
+
+        this.filteredRequests = this.allRequests.filter(request => {
+          // Status filter
+          if (statusFilter !== 'all' && request.status !== statusFilter) {
+            return false;
+          }
+
+          // Date filter
+          if (dateFilter !== 'all' && request.requestedAt) {
+            const requestDate = request.requestedAt.toDate();
+            switch (dateFilter) {
+              case 'today':
+                return requestDate.toDateString() === now.toDateString();
+              case 'week':
+                const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+                return requestDate >= weekAgo;
+              case 'month':
+                const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+                return requestDate >= monthAgo;
+            }
+          }
+
+          return true;
+        });
+
+        this.displayRequests();
+      }
+
+      displayRequests() {
+        const tbody = document.getElementById('requestsTableBody');
+        const emptyState = document.getElementById('noRequestsEmpty');
+        const resultsCount = document.getElementById('resultsCount');
+
+        if (this.filteredRequests.length === 0) {
+          tbody.innerHTML = '';
+          emptyState.style.display = 'block';
+          resultsCount.textContent = '0 requests';
+          return;
+        }
+
+        emptyState.style.display = 'none';
+        resultsCount.textContent = `${this.filteredRequests.length} requests`;
+
+        tbody.innerHTML = this.filteredRequests.map(request => 
+          this.createRequestRow(request)
+        ).join('');
+      }
+
+      createRequestRow(request) {
+        const statusConfig = {
+          'pending': { class: 'pending', badge: 'Pending', icon: 'fa-clock' },
+          'approved': { class: 'approved', badge: 'Approved', icon: 'fa-check' },
+          'paid': { class: 'paid', badge: 'Paid', icon: 'fa-money-bill' },
+          'rejected': { class: 'rejected', badge: 'Rejected', icon: 'fa-times' }
+        };
+
+        const config = statusConfig[request.status] || statusConfig.pending;
+        const requestedDate = request.requestedAt?.toDate().toLocaleDateString() || 'Unknown';
+        const period = this.formatMonth(request.reportMonth);
+
+        return `
+          <tr>
+            <td>
+              <div class="creator-cell">
+                <div class="creator-name">${request.creatorName}</div>
+                <div class="creator-email">${request.creatorEmail}</div>
+              </div>
+            </td>
+            <td>${period}</td>
+            <td class="amount-cell">$${request.amount?.toLocaleString()}</td>
+            <td>${requestedDate}</td>
+            <td>
+              <span class="status-badge ${config.class}">
+                <i class="fas ${config.icon}"></i> ${config.badge}
+              </span>
+            </td>
+            <td>
+              <div class="action-buttons">
+                <button class="btn-view" onclick="viewRequest('${request.id}')">
+                  <i class="fas fa-eye"></i> View
+                </button>
+                ${request.status === 'pending' ? `
+                  <button class="btn-approve" onclick="openActionModal('${request.id}', 'approve')">
+                    <i class="fas fa-check"></i> Approve
+                  </button>
+                  <button class="btn-reject" onclick="openActionModal('${request.id}', 'reject')">
+                    <i class="fas fa-times"></i> Reject
+                  </button>
+                ` : ''}
+                ${request.status === 'approved' ? `
+                  <button class="btn-pay" onclick="openActionModal('${request.id}', 'pay')">
+                    <i class="fas fa-money-bill"></i> Mark Paid
+                  </button>
+                ` : ''}
+              </div>
+            </td>
+          </tr>
+        `;
+      }
+
+      updateStats() {
+        const pending = this.allRequests.filter(r => r.status === 'pending').length;
+        const approved = this.allRequests.filter(r => r.status === 'approved').length;
+        const paid = this.allRequests.filter(r => r.status === 'paid').length;
+        
+        const totalAmount = this.allRequests
+          .filter(r => r.status === 'paid')
+          .reduce((sum, r) => sum + (r.amount || 0), 0);
+
+        document.getElementById('pendingCount').textContent = pending;
+        document.getElementById('approvedCount').textContent = approved;
+        document.getElementById('paidCount').textContent = paid;
+        document.getElementById('totalAmount').textContent = `$${totalAmount.toLocaleString()}`;
+      }
+
+      async openActionModal(requestId, action) {
+        try {
+          const requestDoc = await db.collection('withdrawalRequests').doc(requestId).get();
+          
+          if (!requestDoc.exists) {
+            this.showNotification('Request not found', 'error');
+            return;
+          }
+
+          this.currentRequest = { id: requestId, ...requestDoc.data() };
+          this.updateActionModal(action);
+
+          document.getElementById('actionModal').classList.add('show');
+
+        } catch (error) {
+          console.error('Error opening action modal:', error);
+          this.showNotification('Error loading request details', 'error');
+        }
+      }
+
+      updateActionModal(action) {
+        const request = this.currentRequest;
+        const period = this.formatMonth(request.reportMonth);
+        const requestedDate = request.requestedAt?.toDate().toLocaleDateString() || 'Unknown';
+
+        // Update modal title
+        const actionTitles = {
+          'approve': 'Approve Withdrawal Request',
+          'reject': 'Reject Withdrawal Request', 
+          'pay': 'Mark as Paid',
+          'view': 'Request Details'
+        };
+        document.getElementById('modalTitle').textContent = actionTitles[action] || 'Request Details';
+
+        // Update request details
+        document.getElementById('modalRequestDetails').innerHTML = `
+          <div class="detail-grid">
+            <div class="detail-item">
+              <span class="detail-label">Creator:</span>
+              <span class="detail-value">${request.creatorName}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Email:</span>
+              <span class="detail-value">${request.creatorEmail}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Report Period:</span>
+              <span class="detail-value">${period}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Amount:</span>
+              <span class="detail-value amount">$${request.amount?.toLocaleString()}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Requested:</span>
+              <span class="detail-value">${requestedDate}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Current Status:</span>
+              <span class="detail-value status-${request.status}">${request.status.toUpperCase()}</span>
+            </div>
+          </div>
+        `;
+
+        // Update action buttons
+        let actionButtons = '';
+        switch (action) {
+          case 'approve':
+            actionButtons = `
+              <button class="btn-approve" onclick="processRequest('approve')">
+                <i class="fas fa-check"></i> Approve Request
+              </button>
+            `;
+            break;
+          case 'reject':
+            actionButtons = `
+              <button class="btn-reject" onclick="processRequest('reject')">
+                <i class="fas fa-times"></i> Reject Request
+              </button>
+            `;
+            break;
+          case 'pay':
+            actionButtons = `
+              <button class="btn-pay" onclick="processRequest('pay')">
+                <i class="fas fa-money-bill"></i> Mark as Paid
+              </button>
+            `;
+            break;
+          default:
+            actionButtons = `
+              <button class="btn-secondary" onclick="closeActionModal()">Close</button>
+            `;
+        }
+
+        document.getElementById('modalActionButtons').innerHTML = actionButtons;
+      }
+
+      async processRequest(action) {
+        if (!this.currentRequest) return;
+
+        try {
+          const requestRef = db.collection('withdrawalRequests').doc(this.currentRequest.id);
+          const adminNotes = document.getElementById('adminNotes').value;
+          const updateData = {
+            processedAt: new Date(),
+            processedBy: authSystem.currentUser.uid,
+            processorEmail: authSystem.currentUser.email,
+            adminNotes: adminNotes || null
+          };
+
+          switch (action) {
+            case 'approve':
+              updateData.status = 'approved';
+              updateData.approvedAt = new Date();
+              break;
+            case 'reject':
+              updateData.status = 'rejected';
+              updateData.rejectedAt = new Date();
+              break;
+            case 'pay':
+              updateData.status = 'paid';
+              updateData.paidAt = new Date();
+              break;
+          }
+
+          await requestRef.update(updateData);
+
+          // Log the action
+          await db.collection('withdrawalLogs').add({
+            action: `${action}_request`,
+            requestId: this.currentRequest.id,
+            creatorId: this.currentRequest.creatorId,
+            amount: this.currentRequest.amount,
+            performedBy: authSystem.currentUser.uid,
+            performedAt: new Date(),
+            notes: adminNotes
+          });
+
+          this.showNotification(`Request ${action}ed successfully!`, 'success');
+          this.closeActionModal();
+
+        } catch (error) {
+          console.error('Error processing request:', error);
+          this.showNotification(`Error ${action}ing request`, 'error');
+        }
+      }
+
+      closeActionModal() {
+        document.getElementById('actionModal').classList.remove('show');
+        this.currentRequest = null;
+        document.getElementById('adminNotes').value = '';
+      }
+
+      formatMonth(monthString) {
+        if (!monthString) return 'Unknown Period';
+        const [year, month] = monthString.split('-');
+        const date = new Date(year, month - 1);
+        return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
+      }
+
+      setupRealTimeListeners() {
+        // Real-time updates for withdrawal requests
+        db.collection('withdrawalRequests')
+          .orderBy('requestedAt', 'desc')
+          .onSnapshot((snapshot) => {
+            this.loadWithdrawalRequests();
+          });
+      }
+
+      showNotification(message, type = 'error') {
+        const notification = document.getElementById('notification');
+        notification.textContent = message;
+        notification.className = `notification ${type}`;
+        notification.style.display = 'block';
+        
+        setTimeout(() => {
+          notification.style.display = 'none';
+        }, 5000);
+      }
+    }
+
+    // Global functions
+    function filterRequests() {
+      if (window.requestsManager) {
+        window.requestsManager.filterRequests();
+      }
+    }
+
+    function viewRequest(requestId) {
+      if (window.requestsManager) {
+        window.requestsManager.openActionModal(requestId, 'view');
+      }
+    }
+
+    function openActionModal(requestId, action) {
+      if (window.requestsManager) {
+        window.requestsManager.openActionModal(requestId, action);
+      }
+    }
+
+    function processRequest(action) {
+      if (window.requestsManager) {
+        window.requestsManager.processRequest(action);
+      }
+    }
+
+    function closeActionModal() {
+      if (window.requestsManager) {
+        window.requestsManager.closeActionModal();
+      }
+    }
+
+    function exportRequests() {
+      // Export functionality would go here
+      if (window.requestsManager) {
+        window.requestsManager.showNotification('Export feature coming soon!', 'success');
+      }
+    }
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+      if (authSystem.hasRole('admin') || authSystem.hasRole('finance')) {
+        window.requestsManager = new WithdrawalRequestsManager();
+      } else {
+        window.location.href = 'index.html';
+      }
+    });
+  </script>
+</body>
+</html>
